@@ -84,6 +84,7 @@ void initializeWeights(struct Neuron* neuron) {
     // Initialisez le poids avec des valeurs aléatoires, par exemple entre -1 et 1
     neuron->weights = ((double)rand() / RAND_MAX) * 2 - 1; // Valeur entre -1 et 1
     printf("Poids: %f\n", neuron->weights);
+    neuron->bias = 0.0; // Valeur de 0 pour le biais
 }
 
 
@@ -105,42 +106,200 @@ void feedForward(struct Neuron* neuron, int n, double* inputs){
 }
 
 //pour calculer la sortie du reseau en fonction des couches
+/*
 void feedForwardNetwork(struct Network* network, double* inputs) {
+    printf("Feedforward Network: commence\n");
     double* currentInputs = inputs;
+    size_t taille = 0;
+
     for (int i = 0; i < network->numLayers; i++) {
+        printf("on est dans la couche %d\n", i);
         struct Layer* layer = &network->layers[i];
-        double* newInputs = (double*)malloc(layer->numNeurons * sizeof(double));
+        if (layer->numNeurons <= 0) {
+            fprintf(stderr, "Erreur: nombre de neurones non valide dans la couche %d\n", i);
+            exit(EXIT_FAILURE);
+        }
+        int nombreNeurones = layer->numNeurons;
+        printf("nombre de neurones dans la couche %d: %d\n", i, nombreNeurones);
+        taille = nombreNeurones * sizeof(double);
+        printf("taille: %ld\n", taille);
+        double* newInputs = malloc(taille);//////////////////////////c'est sencé fonctionner
+        if (newInputs == NULL) {
+            perror("Erreur d'allocation de mémoire pour newInputs");
+            exit(EXIT_FAILURE);
+        }
+        printf("ça a marché ? \n");
+
+        printf("Layer %d: %d neurones\n", i, layer->numNeurons);
         for (int j = 0; j < layer->numNeurons; j++) {
-            feedForward(&layer->neurons[j], network->layers[i == 0 ? 0 : i-1].numNeurons, currentInputs);
+            if (i == 0 && currentInputs == NULL) {
+                fprintf(stderr, "Erreur: currentInputs est NULL pour la couche d'entrée\n");
+                exit(EXIT_FAILURE);
+            }
+            feedForward(&layer->neurons[j], (i == 0 ? 0 : network->layers[i-1].numNeurons), currentInputs);
             newInputs[j] = layer->neurons[j].output;
         }
+        free(currentInputs);  // Libération de l'ancienne mémoire
         currentInputs = newInputs;
+    }
+
+    printf("Feedforward Network: fin\n");
+}
+*/
+
+//fonction pour vérifier l'intégrité du réseau
+void verifier_integrite_network(struct Network reseau) {
+    printf("Vérification de l'intégrité du réseau...\n");
+    printf("Nombre de couches: %d\n", reseau.numLayers);
+
+    int erreur_detectee = 0;
+
+    for (int i = 0; i < reseau.numLayers; i++) {
+        printf("Couche %d: %d neurones\n", i, reseau.layers[i].numNeurons);
+
+        for (int j = 0; j < reseau.layers[i].numNeurons; j++) {
+            struct Neuron* neurone = &reseau.layers[i].neurons[j];
+
+            // Vérification de l'allocation des poids
+            if (neurone->weights == NAN) {
+                printf("Erreur: Neurone %d dans la couche %d n'a pas de poids alloués.\n", j, i);
+                erreur_detectee++;
+                continue;
+            }
+
+            // Vérification du nombre de poids (pour les couches non initiales)
+            if (i > 0 && neurone->weights != NAN ){
+            //int expectedWeights = reseau.layers[i-1].numNeurons;
+                if (isnan(neurone->weights) || isinf(neurone->weights)) {
+                    printf("Erreur: Neurone %d dans la couche %d a un poids invalide (NaN ou inf).\n", j, i);
+                    erreur_detectee++;
+                }
+            }
+
+            // Vérification des valeurs de biais
+            if (isnan(neurone->bias) || isinf(neurone->bias)) {
+                printf("Erreur: Neurone %d dans la couche %d a un biais invalide (NaN ou inf).\n", j, i);
+                erreur_detectee++;
+            }
+
+            // Affichage des informations sur le neurone
+            printf("Neurone %d: biais = %f\n", j, neurone->bias);
+        }
+    }
+
+    if (erreur_detectee == 0) {
+        printf("Vérification terminée. Aucune erreur détectée.\n");
+    } else {
+        printf("Vérification terminée avec %d erreurs détectées.\n", erreur_detectee);
     }
 }
 
+void feedForwardNetwork(struct Network* network, double* inputs) {
+    printf("Feedforward Network: commence\n");
+
+    //double* newInputs = malloc(taille);
+    /*
+    if (network->layers[0].numNeurons * sizeof(double) != NAN) {
+        printf("on alloue bufferA\n");
+        bufferA = malloc(network->layers[0].numNeurons * sizeof(double));
+        printf("ça a marché ? \n");
+        if (bufferA == NULL) {
+            perror("Erreur d'allocation de mémoire pour bufferA");
+            exit(EXIT_FAILURE);
+        }
+    }
+    */
+    int nombreNeurones = network->layers[0].numNeurons;
+    printf("nombre de neurones: %d\n", nombreNeurones);
+    //Double buffering: deux tableaux pour stocker les entrées/sorties intermédiaires
+    size_t taille = nombreNeurones * sizeof(double);
+    printf("taille: %ld\n", taille);
+    double* bufferA;
+    printf("nombre de neurones: %d, taille: %ld\n", nombreNeurones, taille);
+    verifier_integrite_network(*network);
+    bufferA = malloc(taille);
+
+    printf("ça a marché ? \n");
+    if (bufferA == NULL) {
+        perror("Erreur d'allocation de mémoire pour testAlloc");
+        exit(EXIT_FAILURE);
+    } else {
+        printf("Allocation réussie pour %ld octets\n", taille);
+    }
+    printf("bufferA initialisé \n");
+    double* bufferB = malloc(taille);
+    printf("bufferB initialisé \n");
+
+    printf("ça a marché ? \n");
+    if (bufferA == NULL || bufferB == NULL) {
+        perror("Erreur d'allocation de mémoire pour les buffers");
+        exit(EXIT_FAILURE);
+    }
+
+    double* currentInputs = inputs;
+    double* currentOutputs = bufferA;
+
+    for (int i = 0; i < network->numLayers; i++) {
+        printf("on est dans la couche %d\n", i);
+        struct Layer* layer = &network->layers[i];
+
+        
+        if (layer->numNeurons <= 0) {
+            fprintf(stderr, "Erreur: nombre de neurones non valide dans la couche %d\n", i);
+            exit(EXIT_FAILURE);
+        }
+
+        // Assurez-vous que le buffer actuel est de la bonne taille
+        if (i > 0 && layer->numNeurons != network->layers[i-1].numNeurons) {
+            currentOutputs = (currentOutputs == bufferA) ? bufferB : bufferA;
+        }
+
+        for (int j = 0; j < layer->numNeurons; j++) {
+            feedForward(&layer->neurons[j], (i == 0) ? 0 : network->layers[i-1].numNeurons, currentInputs);
+            currentOutputs[j] = layer->neurons[j].output;
+        }
+
+        // Passez au tableau suivant pour la couche suivante
+        currentInputs = currentOutputs;
+    }
+
+    // Libération des buffers
+    free(bufferA);
+    free(bufferB);
+
+    printf("Feedforward Network: fin\n");
+}
+
+
+
 //ajuster les poids en fonction de l'erreur (utilisée dans la fonction backpropagationNetwork)
 void backpropagation(struct Neuron* neuron, int n, double* inputs, double learningRate){
+    printf("Backpropagation: commence\n");
     double gradient = neuron->output * (1 - neuron->output) * neuron->error;
     for (int i = 0; i < n; i++) {
         neuron->weights += learningRate * gradient * inputs[i];
     }
     neuron->bias += learningRate * gradient;
+    printf("Backpropagation: fin\n");
     return;
 }
 
 //fonction de cout pour calculer l'erreur
 double cout(struct Network* network, double* expectedOutputs){
+    printf("Calcul de l'erreur: commence\n");
     double error = 0;
     struct Layer* outputLayer = &network->layers[network->numLayers - 1];
     for (int i = 0; i < outputLayer->numNeurons; i++) {
         error += pow(expectedOutputs[i] - outputLayer->neurons[i].output, 2);
     }
+    printf("Calcul de l'erreur: fin\n");
     return error;
 }
 
 
 //ajuster les poids en fonction de l'erreur
 void backpropagationNetwork(struct Network* network, double* expectedOutputs, double learningRate) {
+    printf("Backpropagation Network: commence\n");
     // Calculer l'erreur pour la dernière couche
     struct Layer* outputLayer = &network->layers[network->numLayers - 1];
     for (int i = 0; i < outputLayer->numNeurons; i++) {
@@ -167,20 +326,24 @@ void backpropagationNetwork(struct Network* network, double* expectedOutputs, do
             backpropagation(&layer->neurons[j], i == 0 ? 0 : network->layers[i-1].numNeurons, i == 0 ? expectedOutputs : &(network->layers[i-1].neurons->output), learningRate);
         }
     }
+    printf("Backpropagation Network: fin\n");
 }
 
 // fonction pour prédire les sorties
 void predict(struct Network* network, double* input, double* output) {
+    printf("démarage de predict...\n");
     feedForwardNetwork(network, input);
     // Copier les sorties du dernier layer
     struct Layer* outputLayer = &network->layers[network->numLayers - 1];
     for (int i = 0; i < outputLayer->numNeurons; i++) {
         output[i] = outputLayer->neurons[i].output;
     }
+    printf("fin de predict...\n");
 }
 
 //fonction pour calculer la précision
 double calculateAccuracy(struct Network* network, double** validationInputs, double** validationOutputs, int numValidationSamples, int numOutputs) {
+    printf("Calcul de la précision...\n");
     int correctPredictions = 0;
     double* predictedOutput = (double*)malloc(numOutputs * sizeof(double));
     
@@ -198,6 +361,7 @@ double calculateAccuracy(struct Network* network, double** validationInputs, dou
         }
     }
     free(predictedOutput);
+    printf("Précision: %.2f%%\n", (double)correctPredictions / numValidationSamples * 100.0);
     return (double)correctPredictions / numValidationSamples * 100.0;
 }
 
@@ -256,7 +420,7 @@ void initializeNetwork(struct Network* network, int height, int width, int numOu
         }
 
         // Initialisation des poids pour chaque neurone
-        int prevLayerNeurons = (i == 0) ? 0 : network->layers[i-1].numNeurons;
+        //int prevLayerNeurons = (i == 0) ? 0 : network->layers[i-1].numNeurons;
         for (int j = 0; j < numNeurons[i]; j++) {
             initializeWeights(&network->layers[i].neurons[j]);
         }
@@ -272,12 +436,15 @@ void initializeNetwork(struct Network* network, int height, int width, int numOu
 //convertir l'image en niveaux de gris
 void convertToGrayscale(unsigned char* buffer, int length) {
     // Convertir l'image en niveaux de gris
-    for (int i = 0; i < length; i += 4) {
+    for (int i = 0; i+2 < length; i += 3) {
         unsigned char y = buffer[i];  // Composante Y (luminance)
-        buffer[i] = y;  // Luminance
-        buffer[i + 2] = y;  // Luminance du deuxième pixel
+        buffer[i] = y;  // Rouge
+        buffer[i + 1] = y;  // Vert
+        buffer[i + 2] = y;  // Bleu
     }
 }
+
+
 
 // Rognage de l'image
 void resizeImage(unsigned char* buffer, int width, int height) {
@@ -311,7 +478,8 @@ void preprocessImage(unsigned char* imageBuffer, int* width, int* height, double
     int largeur = *width;
     int hauteur = *height;
     // Convertir l'image en niveaux de gris
-    convertToGrayscale(imageBuffer, largeur * hauteur * 2);
+    //convertToGrayscale(imageBuffer, largeur * hauteur * 2);
+    //bgraToGrayscale(imageBuffer, imageBuffer, largeur, hauteur); on arrete de convertir en niveaux de gris
     //resizeImage(buffer, width, height);
 
     // Normalisation
@@ -402,7 +570,7 @@ unsigned char* loadImage(const char* filePath, int* width, int* height) {
 
     // Lire les données de l'image dans le buffer
     size_t bytesRead = fread(buffer, 1, size, file);
-    if (bytesRead != size) {
+    if (bytesRead != (size_t)size) {
         perror("Erreur lors de la lecture de l'image");
         free(buffer);
         fclose(file);
@@ -413,19 +581,9 @@ unsigned char* loadImage(const char* filePath, int* width, int* height) {
     return buffer;
 }
 
-// Fonction fictive pour charger les étiquettes
-double* loadLabel(const char* datasetPath, int index) {
-    // Implémentez cette fonction selon la structure de vos étiquettes
-    // Exemple: chargement d'une étiquette fictive
-    double* label = (double*)malloc(sizeof(double));
-    *label = (index % 2); // Exemple: étiquette binaire fictive
-    return label;
-}
-
 
 /////////////////////////////////////////////zone d'entrainement////////////////////////////////////
-void loadImageDataset(const char* directoryPath, double** inputs, double** labels, int numImages, int* width, int* height) {
-
+void loadImageDataset(const char* directoryPath, double** inputs, int numImages, int* width, int* height) {
     DIR* dir = opendir(directoryPath);
     if (dir == NULL) {
         perror("Erreur lors de l'ouverture du répertoire");
@@ -438,38 +596,24 @@ void loadImageDataset(const char* directoryPath, double** inputs, double** label
         return;
     }
 
-    //printf("Chargement des images...\n");
-
     struct dirent* entry;
     int imageCount = 0;
-    //initialiser le buffer
     unsigned char* buffer = allocateBuffer(*width, *height);
-    //printf("Succès allocation du buffer pour les images...\n");
     if (!buffer) {
+        fprintf(stderr, "Erreur lors de l'allocation du buffer\n");
         closedir(dir);
         return;
     }
-    //buffer = loadFirstImage("photos_visage/Aaron_Peirsol_0002.jpg", width, height);
 
     while ((entry = readdir(dir)) != NULL) {
-        //on vide le buffer initialisé
-        memset(buffer, 0, *width * *height);
-        // Construire le chemin complet du fichier
-        char* filePath[1024];
-        char fullFilePath[1024];
-        //strcpy(fullFilePath, filePath);
-        snprintf(fullFilePath, sizeof(fullFilePath), "%s/%s", directoryPath, entry->d_name);
-        // Afficher le chemin du fichier
-        //printf("Traitement du fichier : %s", fullFilePath);
-        // Ignorer les répertoires '.' et '..'
         if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0) {
-            //printf("Chargement de l'image : %s\n", fullFilePath);
-            //charger et prétraiter l'image
-            //unsigned char* imgBuffer = loadImage(filePath, width, height);
+            char fullFilePath[1024];
+            snprintf(fullFilePath, sizeof(fullFilePath), "%s/%s", directoryPath, entry->d_name);
+
+            // Charger et prétraiter l'image
             preprocessImage(buffer, width, height, inputs[imageCount]);
-            //printf("Image process avec succès : %s\n", fullFilePath);
-            //preprocessImage(cameraImage, &width, &height, buffer);
-            //printf("ça marche ici...\n");
+
+            
 
             imageCount++;
             if (imageCount >= numImages) {
@@ -478,8 +622,11 @@ void loadImageDataset(const char* directoryPath, double** inputs, double** label
         }
     }
 
+    free(buffer);  // Libération de la mémoire allouée
     closedir(dir);
 }
+
+
 
 
 void trainNetwork(struct Network* network, double** inputs, double** expectedOutputs, int numInputs, int numOutputs, int numEpochs, double learningRate, double** validationInputs, double** validationOutputs, int numValidationSamples) {
@@ -507,13 +654,15 @@ void trainNetwork(struct Network* network, double** inputs, double** expectedOut
 
     
     for (int epoch = 0; epoch < numEpochs; epoch++) {
+        printf("Époque %d : Entraînement du réseau...\n", epoch + 1);
         // Traitement des échantillons par mini-batch
         int batchSize = 32; // Exemple de taille de mini-batch
         for (int start = 0; start < numInputs; start += batchSize) {
             int end = (start + batchSize < numInputs) ? start + batchSize : numInputs;
             for (int i = start; i < end; i++) {
+                printf("Traitement de l'échantillon %d...\n", i);
                 feedForwardNetwork(network, inputs[i]);
-                double erreur = cout(network, expectedOutputs[i]);
+                //double erreur = cout(network, expectedOutputs[i]);
                 backpropagationNetwork(network, expectedOutputs[i], learningRate);
             }
         }
@@ -537,6 +686,8 @@ int findMaxIndex(double* array, int length) {
 }
 
 int entrainement_dataset(struct Network network) {
+    struct Network *copie_network = &network;
+    
     int width, height;
     const char* firstImagePath = "photos_visage/Aaron_Peirsol_0002.jpg"; // Chemin vers la première image
 
@@ -577,14 +728,15 @@ int entrainement_dataset(struct Network network) {
     printf("Succès allocation des images et des étiquettes...\n");
 
     printf("Chargement des images et des étiquettes...\n");
-    loadImageDataset("photos_visage", inputs, labels, numImages, &width, &height);
+    printf("lancement de la fonction loadImageDataset...\n");
+    loadImageDataset("photos_visage", inputs, numImages, &width, &height);
     printf("Succès chargement des images et des étiquettes...\n");
 
     // Configurer et entraîner le réseau
     int numOutputs = numClasses; // Le nombre de sorties du réseau
     int numEpochs = 10; // Exemple de nombre d'époques
     double learningRate = 0.01; // Exemple de taux d'apprentissage
-    trainNetwork(&network, inputs, labels, numImages, numOutputs, numEpochs, learningRate, inputs, labels, numImages);
+    trainNetwork(copie_network, inputs, labels, numImages, numOutputs, numEpochs, learningRate, inputs, labels, numImages);
     printf("Entraînement du réseau terminé...\n");
 
     // Capture d'images en temps réel pour la reconnaissance 
@@ -626,12 +778,9 @@ int entrainement_dataset(struct Network network) {
 
 ////////////////////////////////////////////zone de test////////////////////////////////////////////
 
-
 void testInitializeWeights() {
     int numWeights = 5;
     struct Neuron neuron;
-    neuron.weights = (double*)malloc(numWeights * sizeof(double));
-
     initializeWeights(&neuron);
 
     printf("Test Initialize Weights:\n");
@@ -640,53 +789,48 @@ void testInitializeWeights() {
     }
 
     printf("Bias: %f\n", neuron.bias);
-    free(neuron.weights);
 }
 
 void testFeedForward() {
     int numInputs = 3;
     double inputs[] = {1.0, 0.5, -1.5};
     struct Neuron neuron;
-    neuron.weights = (double*)malloc(numInputs * sizeof(double));
-    
-    neuron.weights[0] = 0.5;
-    neuron.weights[1] = -1.0;
-    neuron.weights[2] = 0.25;
+    if (neuron.weights == NAN) {
+        neuron.weights = 0.0;//au cas ou ça plante
+    }
+
+    neuron.weights = 0.5;
     neuron.bias = 0.1;
 
     feedForward(&neuron, numInputs, inputs);
 
     printf("Test Feed Forward:\n");
     printf("Output: %f\n", neuron.output);
-    
-    free(neuron.weights);
 }
 
 void testBackpropagation() {
     int numInputs = 3;
     double inputs[] = {1.0, 0.5, -1.5};
     struct Neuron neuron;
-    neuron.weights = (double*)malloc(numInputs * sizeof(double));
-    
-    neuron.weights[0] = 0.5;
-    neuron.weights[1] = -1.0;
-    neuron.weights[2] = 0.25;
+    if (neuron.weights == NAN) {
+        neuron.weights = 0.0;//au cas ou ça plante
+    }
+    neuron.weights = 0.5;
     neuron.bias = 0.1;
     neuron.output = 0.6; // Supposez que cette sortie a été obtenue après feedforward
     neuron.error = 0.4;  // Supposez une erreur de 0.4
-    
+
     double learningRate = 0.01;
-    
+
     backpropagation(&neuron, numInputs, inputs, learningRate);
-    
+
     printf("Test Backpropagation:\n");
     for (int i = 0; i < numInputs; i++) {
-        printf("Updated Weight %d: %f\n", i, neuron.weights[i]);
+        printf("Updated Weight %d: %f\n", i, neuron.weights);
     }
     printf("Updated Bias: %f\n", neuron.bias);
-    
-    free(neuron.weights);
 }
+
 
 
 int test_au_cas_ou(void) {
@@ -705,7 +849,7 @@ void printNeuronWeights(struct Network* network, int layerIndex, int neuronIndex
         struct Neuron* neuron = &network->layers[layerIndex].neurons[neuronIndex];
 
         // Assurez-vous que les poids sont alloués
-        if (neuron->weights != NULL) {
+        if (neuron->weights != NAN) {
             int numWeights = (layerIndex == 0) ? 0 : network->layers[layerIndex-1].numNeurons;
             printf("Weights of Neuron %d in Layer %d:\n", neuronIndex, layerIndex);
             printf("Nombre de poids: %d\n", numWeights);  // Afficher le nombre de poids
@@ -713,7 +857,7 @@ void printNeuronWeights(struct Network* network, int layerIndex, int neuronIndex
             // Vérifiez si numWeights est supérieur à 0
             if (numWeights > 0) {
                 for (int i = 0; i < numWeights; i++) {
-                    printf("Weight %d: %f\n", i, neuron->weights[i]);
+                    printf("Weight %d: %f\n", i, neuron->weights);
                 }
             } else {
                 printf("Le neurone n'a pas de poids (numWeights = %d).\n", numWeights);
@@ -730,14 +874,12 @@ void printNetworkWeights(struct Network* network) {
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < network->layers[i].numNeurons; j++) {
             struct Neuron* neuron = &network->layers[i].neurons[j];
-            int numWeights = (i == 0) ? 0 : network->layers[i-1].numNeurons;
+            //int numWeights = (i == 0) ? 0 : network->layers[i-1].numNeurons;
 
             printf("Layer %d, Neuron %d: ", i, j);
-            if (neuron->weights != NULL) {
+            if (neuron->weights != NAN) {
                 printf("Weights: ");
-                printf("%f ", neuron->weights[0]);
-                printf("%f ", neuron->weights[1]);
-                printf("%f ", neuron->weights[7]);
+                printf("%f ", neuron->weights);
                 printf("\n");
             } else {
                 printf("No weights allocated\n");
@@ -750,12 +892,18 @@ void printNetworkWeights(struct Network* network) {
 //5749 personnes
 //13233 images
 int main(void) {
+
+    
     struct Network mon_reseau;
     int width, height;
     unsigned char* buf = loadFirstImage("photos_visage/Aaron_Peirsol_0002.jpg", &width, &height);
+    if (!buf) {
+        return 1;
+    }
     initializeNetwork(&mon_reseau, height, width, 5749);
+    /*
     
-    /* test pooling (succes)
+     test pooling (succes)
     // Pooling de l'image
     int pooledWidth = (width - 2) / 2 + 1;
     int pooledHeight = (height - 2) / 2 + 1;
@@ -786,18 +934,19 @@ int main(void) {
             printf("\n");
         }
     }
-    */
-    int layerIndex = 0; // Index de la couche que vous souhaitez vérifier
-    int neuronIndex = 0; // Index du neurone que vous souhaitez vérifier
+    //int layerIndex = 0; // Index de la couche que vous souhaitez vérifier
+    //int neuronIndex = 0; // Index du neurone que vous souhaitez vérifier
 
      // Afficher les poids du neurone spécifié
     //printNeuronWeights(&mon_reseau, 0, 0); // Exemple pour Layer 0, Neuron 0
 
     // Afficher les poids de tous les neurones
-    printNetworkWeights(&mon_reseau);
+    //printNetworkWeights(&mon_reseau);
 
 
-    //entrainement_dataset(mon_reseau);
+    */
+    entrainement_dataset(mon_reseau);
+
     //test_au_cas_ou();
     //main_camera();
     return 0;

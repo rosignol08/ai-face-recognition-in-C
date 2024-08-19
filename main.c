@@ -2,11 +2,18 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include <linux/videodev2.h>
+// #include <linux/videodev2.h>
 #include <fcntl.h>   // Pour open()
 #include <unistd.h>  // Pour close(), read(), write()
-#include <sys/ioctl.h>  // Pour ioctl()
-#include <sys/mman.h>  // Pour mmap(), munmap()
+#ifdef _WIN32
+#include <windows.h>  // For Windows-specific functions
+#else
+#include <sys/ioctl.h>  // For ioctl()
+#endif
+#ifdef _WIN32
+#else
+#include <sys/mman.h>  // For mmap(), munmap()
+#endif
 #include <time.h>  // Pour srand(), time()
 #define WEIGHT_MAX 10
 #define WEIGHT_MIN -10
@@ -18,8 +25,10 @@
 //#include <dirent.h> // Pour struct dirent 
 
 //pour les images jpg
+#ifdef _WIN32
 #include <jpeglib.h>
 #include <jerror.h>
+#endif
 
 
 #define MAX_CLASS_NAME_LENGTH 256
@@ -183,7 +192,7 @@ void verifier_integrite_network(struct Network reseau) {
             }
 
             // Affichage des informations sur le neurone
-            printf("Neurone %d: biais = %f\n", j, neurone->bias);
+            //printf("Neurone %d: biais = %f\n", j, neurone->bias);
         }
     }
 
@@ -210,27 +219,27 @@ void feedForwardNetwork(struct Network* network, double* inputs) {
     }
     */
     int nombreNeurones = network->layers[0].numNeurons;
-    printf("nombre de neurones: %d\n", nombreNeurones);
+    //printf("nombre de neurones: %d\n", nombreNeurones);
     //Double buffering: deux tableaux pour stocker les entrées/sorties intermédiaires
     size_t taille = nombreNeurones * sizeof(double);
-    printf("taille: %ld\n", taille);
+    //printf("taille: %ld\n", taille);
     double* bufferA;
-    printf("nombre de neurones: %d, taille: %ld\n", nombreNeurones, taille);
-    verifier_integrite_network(*network);
+    //printf("nombre de neurones: %d, taille: %ld\n", nombreNeurones, taille);
+    //verifier_integrite_network(*network);
     bufferA = malloc(taille);
 
-    printf("ça a marché ? \n");
+    //printf("ça a marché ? \n");
     if (bufferA == NULL) {
         perror("Erreur d'allocation de mémoire pour testAlloc");
         exit(EXIT_FAILURE);
     } else {
         printf("Allocation réussie pour %ld octets\n", taille);
     }
-    printf("bufferA initialisé \n");
+    //printf("bufferA initialisé \n");
     double* bufferB = malloc(taille);
-    printf("bufferB initialisé \n");
+    //printf("bufferB initialisé \n");
 
-    printf("ça a marché ? \n");
+    //printf("ça a marché ? \n");
     if (bufferA == NULL || bufferB == NULL) {
         perror("Erreur d'allocation de mémoire pour les buffers");
         exit(EXIT_FAILURE);
@@ -274,13 +283,13 @@ void feedForwardNetwork(struct Network* network, double* inputs) {
 
 //ajuster les poids en fonction de l'erreur (utilisée dans la fonction backpropagationNetwork)
 void backpropagation(struct Neuron* neuron, int n, double* inputs, double learningRate){
-    printf("Backpropagation: commence\n");
+    //printf("Backpropagation: commence\n");
     double gradient = neuron->output * (1 - neuron->output) * neuron->error;
     for (int i = 0; i < n; i++) {
         neuron->weights += learningRate * gradient * inputs[i];
     }
     neuron->bias += learningRate * gradient;
-    printf("Backpropagation: fin\n");
+    //printf("Backpropagation: fin\n");
     return;
 }
 
